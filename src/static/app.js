@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      // Reset activity select to avoid duplicate options on refresh
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -69,8 +71,41 @@ document.addEventListener("DOMContentLoaded", () => {
             nameSpan.className = "participant-name";
             nameSpan.textContent = p;
 
+            // Delete/unregister button
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "delete-participant";
+            deleteBtn.title = "Unregister participant";
+            deleteBtn.innerHTML = "✖";
+            deleteBtn.addEventListener("click", async () => {
+              try {
+                const res = await fetch(
+                  `/activities/${encodeURIComponent(name)}/unregister?email=${encodeURIComponent(p)}`,
+                  { method: "DELETE" }
+                );
+                const resJson = await res.json();
+                if (res.ok) {
+                  messageDiv.textContent = resJson.message;
+                  messageDiv.className = "success";
+                  messageDiv.classList.remove("hidden");
+                  // refresh activities to reflect change
+                  fetchActivities();
+                  setTimeout(() => messageDiv.classList.add("hidden"), 5000);
+                } else {
+                  messageDiv.textContent = resJson.detail || "Failed to unregister";
+                  messageDiv.className = "error";
+                  messageDiv.classList.remove("hidden");
+                }
+              } catch (err) {
+                messageDiv.textContent = "Failed to unregister. Please try again.";
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                console.error("Error unregistering:", err);
+              }
+            });
+
             li.appendChild(badge);
             li.appendChild(nameSpan);
+            li.appendChild(deleteBtn);
             ul.appendChild(li);
           });
         } else {
@@ -116,7 +151,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (response.ok) {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
-        signupForm.reset();
+      	    signupForm.reset();
+      	    // Refresh activities so the new participant appears immediately
+      	    fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
